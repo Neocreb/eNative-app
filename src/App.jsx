@@ -5,6 +5,7 @@ import Contacts from './pages/Contacts'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import ProfileSetup from './pages/ProfileSetup'
+import Dialler from './pages/Dialler'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -16,11 +17,7 @@ export default function App() {
       const u = session?.user ?? null
       setUser(u)
       if (u) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', u.id)
-          .single()
+        const { data } = await supabase.from('profiles').select('*').eq('user_id', u.id).single()
         setProfile(data)
       }
       setLoading(false)
@@ -29,11 +26,7 @@ export default function App() {
       const u = session?.user ?? null
       setUser(u)
       if (u) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', u.id)
-          .single()
+        const { data } = await supabase.from('profiles').select('*').eq('user_id', u.id).single()
         setProfile(data)
       }
     })
@@ -58,6 +51,7 @@ export default function App() {
       <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
       <Route path="/setup" element={user ? <ProfileSetup /> : <Navigate to="/login" />} />
       <Route path="/contacts" element={user ? <Contacts /> : <Navigate to="/login" />} />
+      <Route path="/dialler" element={user ? <Dialler /> : <Navigate to="/login" />} />
       <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
