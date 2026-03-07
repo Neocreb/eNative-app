@@ -91,18 +91,36 @@ export default function Profile() {
     { label: "Total Calls", val: "1,284", sub: "All time", c: "#60d8fa" },
   ];
 
+  const fetchProfile = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    if (data) {
+      setAvatarUrl(data.avatar_url || null);
+      if (data.full_name) setName(data.full_name);
+      if (data.country) setCountry(data.country);
+    }
+  };
+
   const uploadAvatar = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     setUploading(true);
     const ext = file.name.split(".").pop();
     const path = `${user.id}/avatar.${ext}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (!error) {
+    console.log("Uploading to path:", path);
+    const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    console.log("Upload error:", uploadError);
+    if (!uploadError) {
       const { data } = supabase.storage.from("avatars").getPublicUrl(path);
       const url = data.publicUrl + "?t=" + Date.now();
+      console.log("Public URL:", url);
       setAvatarUrl(url);
-      await supabase.from("profiles").upsert({ user_id: user.id, avatar_url: url });
+      const { error: dbError } = await supabase.from("profiles").upsert({ id: user.id, avatar_url: url });
+      console.log("DB error:", dbError);
     }
     setUploading(false);
   };
