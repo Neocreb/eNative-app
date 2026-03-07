@@ -7,17 +7,19 @@ const css = `
   .nav-btn:hover { background: #0c0d12; color: rgba(255,255,255,0.52); }
   .nav-btn.active { background: rgba(192,132,252,0.1); color: #c084fc; }
   .nav-dot { position: absolute; top: 7px; right: 7px; width: 5px; height: 5px; border-radius: 50%; background: #ff5f7e; border: 1.5px solid #08090d; }
-  .sidebar-bottom { margin-top: auto; }
-  .avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #1a0a30, #0d0520); border: 1.5px solid rgba(192,132,252,0.25); display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 12px; color: #c084fc; cursor: pointer; }
+  .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-bottom: 4px; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #1a0a30, #0d0520); border: 1.5px solid rgba(192,132,252,0.25); display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 12px; color: #c084fc; cursor: pointer; transition: all 0.18s; }
+  .avatar:hover { border-color: rgba(192,132,252,0.5); }
+  .avatar.active { border-color: #c084fc; background: rgba(192,132,252,0.15); }
 `;
 
 const NAV = [
-  { icon: "⊞", path: "/",         label: "Dashboard" },
-  { icon: "📞", path: "/dialler",  label: "Dialler"   },
-  { icon: "👥", path: "/contacts", label: "Contacts"  },
-  { icon: "💬", path: "/messages", label: "Messages", dot: true },
-  { icon: "🏅", path: "/badge",    label: "Badge"     },
-  { icon: "⚙",  path: "/settings", label: "Settings"  },
+  { icon: "⊞", path: "/",          label: "Dashboard" },
+  { icon: "📞", path: "/dialler",   label: "Dialler"   },
+  { icon: "👥", path: "/contacts",  label: "Contacts"  },
+  { icon: "💬", path: "/messages",  label: "Messages", dot: true },
+  { icon: "🏅", path: "/badge",     label: "Badge"     },
+  { icon: "⚙️", path: "/settings",  label: "Settings"  },
 ];
 
 export default function Sidebar() {
@@ -41,7 +43,13 @@ export default function Sidebar() {
           </button>
         ))}
         <div className="sidebar-bottom">
-          <div className="avatar">TO</div>
+          <div
+            className={`avatar${location.pathname === "/profile" ? " active" : ""}`}
+            onClick={() => navigate("/profile")}
+            title="Profile"
+          >
+            TO
+          </div>
         </div>
       </div>
     </>
