@@ -43,7 +43,7 @@ export default function Sidebar() {
       if (data?.avatar_url) setAvatarUrl(data.avatar_url);
     };
     fetchAvatar();
-  }, []);
+  }, [location]);
 
   return (
     <>
