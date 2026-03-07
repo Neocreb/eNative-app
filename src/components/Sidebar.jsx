@@ -40,7 +40,7 @@ export default function Sidebar() {
         .select('avatar_url')
         .eq('id', user.id)
         .single();
-      if (data?.avatar_url) setAvatarUrl(data.avatar_url + "?t=" + Date.now());
+      if (data?.avatar_url) setAvatarUrl(data.avatar_url);
     };
     fetchAvatar();
   }, [location]);
@@ -67,7 +67,7 @@ export default function Sidebar() {
             onClick={() => navigate("/profile")}
             title="Profile"
           >
-            {avatarUrl ? <img src={avatarUrl} style={{width:"34px",height:"34px",borderRadius:"50%",objectFit:"cover",border:"none",display:"block"}} /> : initials}
+            {avatarUrl ? <img src={avatarUrl} style={{width:"100%",height:"100%",borderRadius:"50%",objectFit:"cover"}} /> : initials}
           </div>
         </div>
       </div>
