@@ -8,6 +8,7 @@ import ProfileSetup from './pages/ProfileSetup'
 import Dialler from './pages/Dialler'
 import Profile from './pages/Profile'
 import Messages from './pages/Messages'
+import QRConnect from './pages/QRConnect'
 import Settings from './pages/Settings'
 
 export default function App() {
@@ -41,7 +42,8 @@ export default function App() {
       <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
       <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
       <Route path="/messages" element={user ? <Messages /> : <Navigate to="/login" />} />
-        <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" />} />
+        <Route path="/qr" element={user ? <QRConnect /> : <Navigate to="/login" />} />
+      <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" />} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   )

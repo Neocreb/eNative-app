@@ -1,57 +1,59 @@
-import { useNavigate, useLocation } from "react-router-dom";
-
-const css = `
-  .sidebar { width: 68px; background: #08090d; border-right: 1px solid #111116; display: flex; flex-direction: column; align-items: center; padding: 22px 0; gap: 4px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
-  .sidebar-logo { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #c084fc, #60d8fa); display: flex; align-items: center; justify-content: center; margin-bottom: 24px; font-family: 'Rajdhani', sans-serif; font-weight: 800; font-size: 16px; color: #fff; cursor: pointer; }
-  .nav-btn { width: 42px; height: 42px; border-radius: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; background: transparent; color: rgba(255,255,255,0.26); font-size: 17px; transition: all 0.18s; position: relative; }
-  .nav-btn:hover { background: #0c0d12; color: rgba(255,255,255,0.52); }
-  .nav-btn.active { background: rgba(192,132,252,0.1); color: #c084fc; }
-  .nav-dot { position: absolute; top: 7px; right: 7px; width: 5px; height: 5px; border-radius: 50%; background: #ff5f7e; border: 1.5px solid #08090d; }
-  .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-bottom: 4px; }
-  .avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #1a0a30, #0d0520); border: 1.5px solid rgba(192,132,252,0.25); display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 12px; color: #c084fc; cursor: pointer; transition: all 0.18s; }
-  .avatar:hover { border-color: rgba(192,132,252,0.5); }
-  .avatar.active { border-color: #c084fc; background: rgba(192,132,252,0.15); }
-`;
+import { useEffect, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 
 const NAV = [
-  { icon: "⊞", path: "/",          label: "Dashboard" },
-  { icon: "📞", path: "/dialler",   label: "Dialler"   },
-  { icon: "👥", path: "/contacts",  label: "Contacts"  },
-  { icon: "💬", path: "/messages",  label: "Messages", dot: true },
-  { icon: "🏅", path: "/badge",     label: "Badge"     },
+  { icon: "⊞", path: "/dashboard", label: "Dashboard" },
+  { icon: "☎", path: "/dialler", label: "Calls" },
+  { icon: "👥", path: "/contacts", label: "Contacts", active: true },
+  { icon: "💬", path: "/messages", label: "Messages", dot: true },
+  { icon: "🏅", path: "/badges", label: "Badge" },
   { icon: "⚙", path: "/settings", label: "Settings" },
-];
+]
 
 export default function Sidebar() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [avatar, setAvatar] = useState(null)
+  const [initials, setInitials] = useState('EN')
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('full_name, avatar_url').eq('user_id', user.id).single()
+        .then(({ data }) => {
+          if (data?.avatar_url) setAvatar(data.avatar_url)
+          if (data?.full_name) setInitials(data.full_name.substring(0,2).toUpperCase())
+        })
+    })
+  }, [])
 
   return (
-    <>
-      <style>{css}</style>
-      <div className="sidebar">
-        <div className="sidebar-logo" onClick={() => navigate("/")}>en</div>
-        {NAV.map((n, i) => (
-          <button
-            key={i}
-            className={`nav-btn${location.pathname === n.path ? " active" : ""}`}
-            title={n.label}
-            onClick={() => navigate(n.path)}
-          >
-            {n.icon}
-            {n.dot && <span className="nav-dot" />}
-          </button>
-        ))}
-        <div className="sidebar-bottom">
-          <div
-            className={`avatar${location.pathname === "/profile" ? " active" : ""}`}
-            onClick={() => navigate("/profile")}
-            title="Profile"
-          >
-            TO
-          </div>
+    <div className="sidebar">
+      <div className="sidebar-logo" onClick={() => navigate("/")}>en</div>
+      {NAV.map((n, i) => (
+        <button
+          key={i}
+          className={`nav-btn${location.pathname === n.path ? " active" : ""}`}
+          title={n.label}
+          onClick={() => navigate(n.path)}
+        >
+          {n.icon}
+          {n.dot && <span className="nav-dot" />}
+        </button>
+      ))}
+      <div className="sidebar-bottom">
+        <div
+          className={`avatar${location.pathname === "/profile" ? " active" : ""}`}
+          onClick={() => navigate("/profile")}
+          title="Profile"
+        >
+          {avatar
+            ? <img src={avatar} alt="avatar" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}/>
+            : initials
+          }
         </div>
       </div>
-    </>
+    </div>
   );
 }

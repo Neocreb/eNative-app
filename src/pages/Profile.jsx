@@ -137,7 +137,7 @@ export default function Profile() {
         </button>
 
         <button onClick={signOut} style={{width:'100%',padding:'13px',background:'transparent',border:'1px solid #1a1a24',borderRadius:'12px',color:'rgba(255,255,255,0.3)',fontFamily:'Share Tech Mono,monospace',fontSize:'10px',letterSpacing:'0.2em',cursor:'pointer'}}>
-          SIGN OUT
+          QR CODE
         </button>
       </div>
 
