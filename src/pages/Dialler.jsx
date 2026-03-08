@@ -1,217 +1,310 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useVapi } from "../hooks/useVapi";
 import { useAuth } from "../hooks/useAuth";
+import { useVapi } from "../hooks/useVapi";
 import { useWebRTC } from "../hooks/useWebRTC";
+import CallerVerification from "../components/CallerVerification";
 import IncomingCall from "../components/IncomingCall";
-import CallerVerification from '../components/CallerVerification';
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&family=Exo+2:wght@300;400;500;600&family=Share+Tech+Mono&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root { --bg: #050507; --surface: #08090d; --surface2: #0c0d12; --border: #111116; --border2: #181820; --accent: #c084fc; --accent2: #60d8fa; --accent3: #6ee7b7; --text: rgba(255,255,255,0.93); --mid: rgba(255,255,255,0.52); --dim: rgba(255,255,255,0.26); --red: #ff5f7e; }
-  body { background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; margin: 0; }
-  .app { display: flex; min-height: 100vh; }
-  .main { margin-left: 68px; flex: 1; display: flex; flex-direction: column; align-items: center; padding: 28px 20px; }
-  .inner { width: 100%; max-width: 400px; }
-  .page-title { font-family: 'Rajdhani', sans-serif; font-weight: 800; font-size: 22px; margin-bottom: 20px; }
-  .tabs { display: flex; gap: 4px; margin-bottom: 24px; background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 4px; }
-  .tab { flex: 1; padding: 10px 0; border-radius: 10px; border: none; background: transparent; color: var(--dim); font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.18s; display: flex; align-items: center; justify-content: center; gap: 6px; }
-  .tab.on { background: rgba(192,132,252,0.12); color: var(--accent); }
-  .dial-display { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 22px; margin-bottom: 18px; text-align: center; min-height: 76px; display: flex; flex-direction: column; justify-content: center; }
-  .dial-number { font-family: 'Share Tech Mono', monospace; font-size: 28px; letter-spacing: 0.1em; color: var(--text); min-height: 34px; }
-  .dial-sublabel { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--dim); letter-spacing: 0.15em; margin-top: 5px; }
-  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
-  .key { height: 62px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border2); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; gap: 2px; }
-  .key:active { transform: scale(0.93); background: rgba(192,132,252,0.15); }
-  .key-num { font-family: 'Rajdhani', sans-serif; font-size: 24px; font-weight: 700; color: var(--text); }
-  .key-alpha { font-family: 'Share Tech Mono', monospace; font-size: 8px; letter-spacing: 0.12em; color: var(--dim); }
+  body { background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; }
+  .app { display: flex; min-height: 100vh; background: var(--bg); }
+  .main { margin-left: 68px; flex: 1; padding: 24px 20px; overflow-y: auto; }
+  .topbar { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+  .page-title { font-family: 'Rajdhani', sans-serif; font-weight: 800; font-size: 20px; }
+  .page-sub { font-size: 12px; color: var(--dim); margin-top: 2px; letter-spacing: 0.05em; }
+  .pill { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 0.14em; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(110,231,183,0.25); color: var(--accent3); background: rgba(110,231,183,0.05); display: flex; align-items: center; gap: 5px; }
+  .pill-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent3); animation: blink 2s infinite; display: inline-block; flex-shrink: 0; }
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+  .tab { padding: 10px 8px; border-radius: 12px; border: 1px solid var(--border2); background: var(--surface); cursor: pointer; text-align: center; transition: all 0.18s; }
+  .tab.active { border-color: rgba(192,132,252,0.35); background: rgba(192,132,252,0.07); }
+  .tab-icon { font-size: 18px; margin-bottom: 4px; }
+  .tab-label { font-family: 'Share Tech Mono', monospace; font-size: 8px; letter-spacing: 0.12em; color: var(--dim); }
+  .tab.active .tab-label { color: var(--accent); }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* KEYPAD */
+  .keypad-display { background: var(--surface2); border: 1px solid var(--border2); border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; text-align: center; }
+  .keypad-num { font-family: 'Share Tech Mono', monospace; font-size: 28px; color: var(--text); letter-spacing: 0.15em; min-height: 40px; }
+  .keypad-hint { font-size: 11px; color: var(--dim); margin-top: 4px; }
+  .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .key { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 14px; text-align: center; cursor: pointer; transition: all 0.15s; user-select: none; }
+  .key:hover { background: var(--surface2); border-color: rgba(192,132,252,0.2); }
+  .key:active { transform: scale(0.95); background: rgba(192,132,252,0.08); }
+  .key-num { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 22px; color: var(--text); line-height: 1; }
+  .key-alpha { font-family: 'Share Tech Mono', monospace; font-size: 8px; letter-spacing: 0.12em; color: var(--dim); margin-top: 2px; }
   .key-special { background: transparent; border-color: transparent; }
-  .call-btn { width: 100%; height: 58px; border-radius: 16px; border: none; background: linear-gradient(135deg, #22c55e, #15803d); color: #fff; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 20px rgba(34,197,94,0.3); transition: all 0.2s; }
-  .call-btn:active { transform: scale(0.97); }
-  .end-btn { width: 100%; height: 48px; border-radius: 14px; border: 1px solid rgba(255,95,126,0.2); background: rgba(255,95,126,0.06); color: var(--red); font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .key-special:hover { background: rgba(255,255,255,0.03); border-color: transparent; }
+  .call-btn { width: 100%; height: 56px; border-radius: 16px; border: none; background: linear-gradient(135deg, #22c55e, #00e676); color: #fff; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 20px rgba(34,197,94,0.3); transition: all 0.2s; }
+  .call-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(34,197,94,0.4); }
+  .end-btn { width: 100%; height: 48px; border-radius: 14px; border: 1px solid rgba(255,95,126,0.3); background: rgba(255,95,126,0.08); color: var(--red); font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
+
+  /* IN CALL */
   .incall { text-align: center; padding: 16px 0 24px; }
-  .incall-av { width: 80px; height: 80px; border-radius: 50%; background: rgba(192,132,252,0.1); display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 14px; animation: pulse 2s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{box-shadow:0 0 0 6px rgba(192,132,252,0.08)} 50%{box-shadow:0 0 0 14px rgba(192,132,252,0.04)} }
-  .incall-num { font-family: 'Share Tech Mono', monospace; font-size: 20px; color: var(--text); margin-bottom: 6px; }
-  .incall-timer { font-family: 'Share Tech Mono', monospace; font-size: 36px; color: var(--accent3); margin-bottom: 8px; }
-  .incall-ai { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--accent); letter-spacing: 0.2em; opacity: 0.7; animation: blink 1.5s infinite; margin-bottom: 20px; }
-  @keyframes blink { 0%,100%{opacity:0.7} 50%{opacity:0.2} }
-  .wave { display: flex; align-items: center; justify-content: center; gap: 3px; height: 32px; margin-bottom: 24px; }
-  .wbar { width: 4px; border-radius: 2px; background: var(--accent); }
-  .section-label { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 0.25em; color: var(--dim); margin-bottom: 12px; }
-  .recent-item { display: flex; align-items: center; gap: 13px; padding: 13px 14px; border-radius: 14px; margin-bottom: 8px; background: var(--surface); cursor: pointer; transition: all 0.15s; }
-  .recent-item:active { background: var(--surface2); }
-  .r-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
-  .r-info { flex: 1; }
-  .r-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-  .r-time { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); }
-  .r-dur { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--mid); margin-right: 8px; }
-  .r-call { width: 34px; height: 34px; border-radius: 10px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
-  .contact-item { display: flex; align-items: center; gap: 13px; padding: 11px 14px; border-radius: 14px; margin-bottom: 8px; background: var(--surface); cursor: pointer; transition: all 0.15s; }
-  .contact-item:active { background: var(--surface2); }
-  .c-av { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 14px; flex-shrink: 0; position: relative; }
-  .c-dot { position: absolute; bottom: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent3); border: 2px solid var(--surface); }
-  .c-info { flex: 1; }
-  .c-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-  .c-enum { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); }
-  .c-call { width: 34px; height: 34px; border-radius: 10px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
-  .search-wrap { position: relative; margin-bottom: 14px; }
-  .search-input { width: 100%; background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 11px 14px 11px 36px; font-family: 'Exo 2', sans-serif; font-size: 13px; color: var(--text); outline: none; transition: border-color 0.2s; }
-  .search-input:focus { border-color: rgba(192,132,252,0.3); }
-  .search-input::placeholder { color: var(--dim); }
-  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--dim); }
+  .incall-av { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #2d1060, #080318); border: 2px solid rgba(192,132,252,0.3); display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 16px; box-shadow: 0 0 32px rgba(192,132,252,0.15); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 32px rgba(192,132,252,0.15)} 50%{box-shadow:0 0 48px rgba(192,132,252,0.3)} }
+  .incall-name { font-family: 'Rajdhani', sans-serif; font-weight: 800; font-size: 24px; margin-bottom: 4px; }
+  .incall-timer { font-family: 'Share Tech Mono', monospace; font-size: 14px; color: var(--dim); margin-bottom: 4px; }
+  .incall-ai { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--accent3); letter-spacing: 0.1em; margin-bottom: 20px; }
+  .wave { display: flex; align-items: center; justify-content: center; gap: 3px; margin-bottom: 24px; height: 32px; }
+  .wave-bar { width: 3px; border-radius: 2px; background: var(--accent); animation: wave 1s ease-in-out infinite; }
+  @keyframes wave { 0%,100%{height:4px;opacity:0.3} 50%{height:24px;opacity:1} }
+  .incall-actions { display: flex; gap: 12px; justify-content: center; margin-bottom: 20px; }
+  .act-btn { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border2); background: var(--surface2); font-size: 18px; cursor: pointer; transition: all 0.18s; }
+  .act-btn:hover { border-color: rgba(192,132,252,0.3); background: rgba(192,132,252,0.08); }
+
+  /* RECENTS */
+  .filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-btn { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 0.12em; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border2); background: transparent; color: var(--dim); cursor: pointer; transition: all 0.18s; }
+  .filter-btn.active { border-color: rgba(192,132,252,0.35); color: var(--accent); background: rgba(192,132,252,0.07); }
+  .recent-item { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+  .recent-item:last-child { border-bottom: none; }
+  .recent-item:hover { background: rgba(255,255,255,0.02); border-radius: 8px; padding-left: 8px; }
+  .recent-av { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #1a0a30, #080318); border: 1px solid rgba(192,132,252,0.2); display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px; color: var(--accent); flex-shrink: 0; }
+  .recent-info { flex: 1; }
+  .recent-name { font-size: 14px; font-weight: 500; }
+  .recent-detail { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--dim); margin-top: 2px; }
+  .recent-meta { text-align: right; }
+  .recent-dur { font-family: 'Share Tech Mono', monospace; font-size: 11px; }
+  .recent-time { font-size: 10px; color: var(--dim); margin-top: 2px; }
+  .missed { color: var(--red) !important; }
+
+  /* CONTACTS */
+  .search-box { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 12px; padding: 11px 16px; font-family: 'Exo 2', sans-serif; font-size: 13px; color: var(--text); outline: none; margin-bottom: 16px; transition: border-color 0.2s; }
+  .search-box:focus { border-color: rgba(192,132,252,0.35); }
+  .contact-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .contact-item:last-child { border-bottom: none; }
+  .contact-av { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #1a0a30, #080318); border: 1px solid rgba(192,132,252,0.2); display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px; color: var(--accent); flex-shrink: 0; position: relative; }
+  .online-dot { position: absolute; bottom: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent3); border: 1.5px solid var(--bg); }
+  .contact-info { flex: 1; }
+  .contact-name { font-size: 14px; font-weight: 500; }
+  .contact-enum { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--dim); margin-top: 2px; }
+  .contact-actions { display: flex; gap: 8px; }
+  .c-btn { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border2); background: var(--surface2); cursor: pointer; font-size: 13px; transition: all 0.18s; }
+  .c-btn.call { border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.08); }
+  .c-btn.msg { border-color: rgba(192,132,252,0.3); background: rgba(192,132,252,0.08); }
+
+  /* MESSAGES */
+  .msg-item { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .msg-item:last-child { border-bottom: none; }
+  .msg-av { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #1a0a30, #080318); border: 1px solid rgba(192,132,252,0.2); display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px; color: var(--accent); flex-shrink: 0; position: relative; }
+  .msg-info { flex: 1; min-width: 0; }
+  .msg-name { font-size: 14px; font-weight: 500; }
+  .msg-preview { font-size: 12px; color: var(--dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg-meta { text-align: right; flex-shrink: 0; }
+  .msg-time { font-size: 10px; color: var(--dim); margin-bottom: 4px; }
+  .msg-badge { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-left: auto; }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 `;
 
-const KEYS = [
-  ["1",""],["2","ABC"],["3","DEF"],
-  ["4","GHI"],["5","JKL"],["6","MNO"],
-  ["7","PQRS"],["8","TUV"],["9","WXYZ"],
-  ["*",""],["0","+"],["#",""],
-];
-
 const RECENTS = [
-  { type: "Outgoing", num: "E-0247", name: "Amara Kone",     time: "Today, 2:14 PM",     dur: "4:32",  icon: "↗", color: "#6ee7b7", bg: "rgba(110,231,183,0.1)" },
-  { type: "Incoming", num: "E-1089", name: "Chidi Okafor",   time: "Today, 10:48 AM",    dur: "12:07", icon: "↙", color: "#60d8fa", bg: "rgba(96,216,250,0.1)"  },
-  { type: "Missed",   num: "E-2341", name: "Kwame Asante",   time: "Yesterday, 6:20 PM", dur: "—",     icon: "✕", color: "#ff5f7e", bg: "rgba(255,95,126,0.1)"  },
-  { type: "Outgoing", num: "E-0553", name: "Naledi Mokoena", time: "Monday, 9:05 AM",    dur: "28:14", icon: "↗", color: "#6ee7b7", bg: "rgba(110,231,183,0.1)" },
-  { type: "Incoming", num: "E-0871", name: "Fatima Diallo",  time: "Sunday, 4:33 PM",    dur: "7:50",  icon: "↙", color: "#60d8fa", bg: "rgba(96,216,250,0.1)"  },
+  { init: "AK", name: "Amara K.", detail: "↗ Outgoing · E-0247", dur: "4:32", time: "2m ago", missed: false },
+  { init: "ZM", name: "Zara M.", detail: "↙ Missed · E-0314", dur: "—", time: "1h ago", missed: true },
+  { init: "CO", name: "Chidi O.", detail: "↙ Incoming · E-1889", dur: "12:07", time: "1h ago", missed: false },
+  { init: "NM", name: "Naledi M.", detail: "↗ Outgoing · E-0553", dur: "7:15", time: "3h ago", missed: false },
+  { init: "KA", name: "Kwame A.", detail: "↙ Missed · E-2381", dur: "—", time: "Yesterday", missed: true },
 ];
 
 const CONTACTS = [
-  { name: "Amara Kone",     en: "E-0247", color: "#c084fc", bg: "rgba(192,132,252,0.12)", online: true  },
-  { name: "Chidi Okafor",   en: "E-1089", color: "#6ee7b7", bg: "rgba(110,231,183,0.12)", online: true  },
-  { name: "Emeka Eze",      en: "E-1432", color: "#60d8fa", bg: "rgba(96,216,250,0.12)",  online: true  },
-  { name: "Fatima Diallo",  en: "E-0871", color: "#6ee7b7", bg: "rgba(110,231,183,0.12)", online: false },
-  { name: "Kwame Asante",   en: "E-2341", color: "#fcd34d", bg: "rgba(252,211,77,0.12)",  online: true  },
-  { name: "Naledi Mokoena", en: "E-0553", color: "#c084fc", bg: "rgba(192,132,252,0.12)", online: false },
+  { init: "AK", name: "Amara Kone", enum: "E-0247", online: true },
+  { init: "ZM", name: "Zara Mensah", enum: "E-0314", online: true },
+  { init: "CO", name: "Chidi Okafor", enum: "E-1889", online: false },
+  { init: "DP", name: "Dev Patel", enum: "E-0892", online: false },
+];
+
+const MESSAGES = [
+  { init: "AK", name: "Amara Kone", preview: "Sure, sending now 👌", time: "08:25", unread: 2, online: true },
+  { init: "ZM", name: "Zara Mensah", preview: "When are you free to call?", time: "07:14", unread: 0, online: true },
+  { init: "DP", name: "Dev Patel", preview: "The API is ready for testing", time: "Yesterday", unread: 1, online: false },
+  { init: "LO", name: "Lena Osei", preview: "Welcome to eNative! 🎉", time: "Monday", unread: 0, online: false },
 ];
 
 export default function Dialler() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState("keypad");
-  const [dialVal, setDialVal] = useState("");
   const { user } = useAuth();
-  const { callActive, callStatus, isMuted, startCall: vapiStart, endCall: vapiEnd, toggleMute } = useVapi();
-  const { incomingCall, startCall: webrtcStart, answerCall, endCall: webrtcEnd, rejectCall } = useWebRTC(user);
+  const { incomingCall, answerCall, endCall: webrtcEnd, rejectCall } = useWebRTC(user);
+  const [tab, setTab] = useState("keypad");
+  const [dialVal, setDialVal] = useState("E-");
   const [calling, setCalling] = useState(false);
   const [callingName, setCallingName] = useState("");
   const [timer, setTimer] = useState(0);
+  const [filter, setFilter] = useState("ALL");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!calling) { setTimer(0); return; }
+    if (!calling) return;
     const iv = setInterval(() => setTimer(t => t + 1), 1000);
     return () => clearInterval(iv);
   }, [calling]);
 
-  const startCall = (num, name = "") => {
-    vapiStart({ name: "eNative Assistant", firstMessage: `Connecting you to ${name || num} via eNative.`, model: { provider: "openai", model: "gpt-3.5-turbo", messages: [{ role: "system", content: "You are eNative, an AI VoIP assistant for pan-African calls." }] }, voice: { provider: "11labs", voiceId: "rachel" } });
-    setDialVal(num); setCallingName(name); setCalling(true); setTab("keypad");
-  };
-
   const m = String(Math.floor(timer / 60)).padStart(2, "0");
   const s = String(timer % 60).padStart(2, "0");
+
+  const startCall = (num, name = "") => {
+    setDialVal(num); setCallingName(name); setCalling(true); setTimer(0);
+  };
+
+  const endCall = () => {
+    setCalling(false); setTimer(0); setCallingName(""); setDialVal("E-");
+    webrtcEnd();
+  };
+
+  const dialPress = (k) => { if (dialVal.length < 8) setDialVal(v => v + k); };
+  const dialDelete = () => { if (dialVal.length > 2) setDialVal(v => v.slice(0, -1)); };
+
+  const filteredRecents = filter === "ALL" ? RECENTS
+    : filter === "MISSED" ? RECENTS.filter(r => r.missed)
+    : filter === "INCOMING" ? RECENTS.filter(r => r.detail.includes("Incoming"))
+    : RECENTS.filter(r => r.detail.includes("Outgoing"));
+
   const filteredContacts = CONTACTS.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) || c.en.toLowerCase().includes(search.toLowerCase())
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.enum.toLowerCase().includes(search.toLowerCase())
   );
+
+  const TABS = [
+    { id: "keypad", icon: "⌨️", label: "KEYPAD" },
+    { id: "recents", icon: "🕐", label: "RECENTS" },
+    { id: "contacts", icon: "👥", label: "CONTACTS" },
+    { id: "messages", icon: "💬", label: "MESSAGES" },
+  ];
 
   return (
     <>
       <style>{css}</style>
+      <IncomingCall call={incomingCall} onAnswer={answerCall} onReject={rejectCall} />
       <div className="app">
         <Sidebar />
         <div className="main">
-          <div className="inner">
-            <div className="page-title">Dialler</div>
-            <div className="tabs">
-              <button className={`tab${tab === "keypad" ? " on" : ""}`} onClick={() => setTab("keypad")}>⌨️ Keypad</button>
-              <button className={`tab${tab === "recents" ? " on" : ""}`} onClick={() => setTab("recents")}>🕐 Recents</button>
-              <button className={`tab${tab === "contacts" ? " on" : ""}`} onClick={() => setTab("contacts")}>👥 Contacts</button>
+          <div className="topbar">
+            <div>
+              <div className="page-title">Dialler</div>
+              <div className="page-sub">eNumber to eNumber · P2P Encrypted</div>
             </div>
+            <div className="pill"><span className="pill-dot" />NETWORK LIVE</div>
+          </div>
 
-            {tab === "keypad" && (
-              <>
-                <IncomingCall call={incomingCall} onAnswer={answerCall} onReject={rejectCall} />
-      {calling ? (
-                  <div className="incall">
-                    <div className="incall-av">📞</div>
-                    <div className="incall-num">{callingName || dialVal}</div>
-                    <div className="incall-timer">{m}:{s}</div>
-                    <div className="incall-ai">● NVIDIA RIVA · AI ACTIVE</div>
-                    <div className="wave">
-                      {Array(20).fill(0).map((_, i) => (
-                        <div key={i} className="wbar" style={{ height: Math.floor(Math.random() * 24) + 8, animation: `waveAnim 0.8s ${(i*0.06).toFixed(2)}s ease-in-out infinite alternate` }} />
-                      ))}
-                      <style>{`@keyframes waveAnim{from{transform:scaleY(0.3);opacity:0.5}to{transform:scaleY(1);opacity:1}}`}</style>
-                    </div>
-                    <button className="end-btn" onClick={() => setCalling(false)}>✕ &nbsp; END CALL</button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="dial-display">
-                      <div className="dial-number">{dialVal}</div>
-                      <div className="dial-sublabel">{dialVal ? "eNumber ready" : "Enter an eNumber to call"}</div>
-                    </div>
-                    <div className="keypad">
-                      {KEYS.map(([num, alpha], i) => (
-                        <div key={i} className="key" onClick={() => setDialVal(v => num === "⌫" ? v.slice(0,-1) : (v+num).slice(0,12))}>
-                          <span className="key-num">{num}</span>
-                          {alpha && <span className="key-alpha">{alpha}</span>}
-                        </div>
-                      ))}
-                      <div className="key key-special" />
-                      <div className="key key-special" onClick={() => setDialVal(v => v.slice(0,-1))}>
-                        <span style={{ color: "var(--mid)", fontSize: 22 }}>⌫</span>
-                      </div>
-                    </div>
-                    <button className="call-btn" onClick={() => dialVal && startCall(dialVal)}>📞 &nbsp; CALL</button>
-                  </>
-                )}
-              </>
-            )}
+          <div className="tabs">
+            {TABS.map(t => (
+              <div key={t.id} className={`tab${tab === t.id ? " active" : ""}`} onClick={() => setTab(t.id)}>
+                <div className="tab-icon">{t.icon}</div>
+                <div className="tab-label">{t.label}</div>
+              </div>
+            ))}
+          </div>
 
-            {tab === "recents" && (
-              <>
-                <div className="section-label">RECENT CALLS</div>
-                {RECENTS.map((r, i) => (
-                  <div key={i} className="recent-item">
-                    <div className="r-icon" style={{ background: r.bg, color: r.color }}>{r.icon}</div>
-                    <div className="r-info">
-                      <div className="r-name" style={{ color: r.color }}>{r.name}</div>
-                      <div className="r-time">{r.num} · {r.time}</div>
-                    </div>
-                    <div className="r-dur">{r.dur}</div>
-                    <div className="r-call" onClick={() => startCall(r.num, r.name)}>📞</div>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {tab === "contacts" && (
-              <>
-                <div className="search-wrap">
-                  <span className="search-icon">🔍</span>
-                  <input className="search-input" placeholder="Search contacts..." value={search} onChange={e => setSearch(e.target.value)} />
+          {/* KEYPAD */}
+          <div className={`section${tab === "keypad" ? " active" : ""}`}>
+            {calling ? (
+              <div className="incall">
+                <div className="incall-av">📞</div>
+                <div className="incall-name">{callingName || dialVal}</div>
+                <div className="incall-timer">{m}:{s}</div>
+                <div className="incall-ai">● NVIDIA RIVA AI · ACTIVE</div>
+                <div className="wave">
+                  {Array(20).fill(0).map((_, i) => (
+                    <div key={i} className="wave-bar" style={{ animationDelay: `${i * 0.05}s`, height: `${Math.random() * 20 + 4}px` }} />
+                  ))}
                 </div>
-                <div className="section-label">{filteredContacts.length} CONTACTS</div>
-                {filteredContacts.map((c, i) => (
-                  <div key={i} className="contact-item">
-                    <div className="c-av" style={{ background: c.bg, color: c.color }}>
-                      {c.name.split(" ").map(n => n[0]).join("")}
-                      {c.online && <div className="c-dot" />}
+                <CallerVerification caller={{ name: callingName, number: dialVal }} />
+                <div className="incall-actions">
+                  <div className="act-btn">🔇</div>
+                  <div className="act-btn">📹</div>
+                  <div className="act-btn">🔊</div>
+                </div>
+                <button className="end-btn" onClick={endCall}>✕ &nbsp; END CALL</button>
+              </div>
+            ) : (
+              <>
+                <div className="keypad-display">
+                  <div className="keypad-num">{dialVal}</div>
+                  <div className="keypad-hint">Enter eNumber to connect</div>
+                </div>
+                <div className="keys">
+                  {["1","2","3","4","5","6","7","8","9"].map(k => (
+                    <div key={k} className="key" onClick={() => dialPress(k)}>
+                      <div className="key-num">{k}</div>
+                      <div className="key-alpha">{["","ABC","DEF","GHI","JKL","MNO","PQRS","TUV","WXYZ"][parseInt(k)-1]}</div>
                     </div>
-                    <div className="c-info">
-                      <div className="c-name">{c.name}</div>
-                      <div className="c-enum">{c.en}</div>
-                    </div>
-                    <div className="c-call" onClick={() => startCall(c.en, c.name)}>📞</div>
-                  </div>
-                ))}
+                  ))}
+                  <div className="key key-special" />
+                  <div className="key" onClick={() => dialPress("0")}><div className="key-num">0</div><div className="key-alpha">+</div></div>
+                  <div className="key key-special" style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} onClick={dialDelete}>⌫</div>
+                </div>
+                <button className="call-btn" onClick={() => dialVal.length > 2 && startCall(dialVal)}>📞 &nbsp; CALL</button>
               </>
             )}
           </div>
+
+          {/* RECENTS */}
+          <div className={`section${tab === "recents" ? " active" : ""}`}>
+            <div className="filter-row">
+              {["ALL","MISSED","INCOMING","OUTGOING"].map(f => (
+                <button key={f} className={`filter-btn${filter === f ? " active" : ""}`} onClick={() => setFilter(f)}>{f}</button>
+              ))}
+            </div>
+            {filteredRecents.map((r, i) => (
+              <div key={i} className="recent-item" onClick={() => startCall(r.detail.split("· ")[1], r.name)}>
+                <div className="recent-av" style={r.missed ? { borderColor: "rgba(255,95,126,0.3)", color: "var(--red)" } : {}}>{r.init}</div>
+                <div className="recent-info">
+                  <div className={`recent-name${r.missed ? " missed" : ""}`}>{r.name}</div>
+                  <div className={`recent-detail${r.missed ? " missed" : ""}`}>{r.detail}</div>
+                </div>
+                <div className="recent-meta">
+                  <div className={`recent-dur${r.missed ? " missed" : ""}`}>{r.dur}</div>
+                  <div className="recent-time">{r.time}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* CONTACTS */}
+          <div className={`section${tab === "contacts" ? " active" : ""}`}>
+            <input className="search-box" placeholder="Search by name or eNumber..." value={search} onChange={e => setSearch(e.target.value)} />
+            {filteredContacts.map((c, i) => (
+              <div key={i} className="contact-item">
+                <div className="contact-av">
+                  {c.init}
+                  {c.online && <span className="online-dot" />}
+                </div>
+                <div className="contact-info">
+                  <div className="contact-name">{c.name}</div>
+                  <div className="contact-enum">{c.enum} · Verified</div>
+                </div>
+                <div className="contact-actions">
+                  <div className="c-btn call" onClick={() => startCall(c.enum, c.name)}>📞</div>
+                  <div className="c-btn msg" onClick={() => navigate("/messages")}>💬</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* MESSAGES */}
+          <div className={`section${tab === "messages" ? " active" : ""}`}>
+            {MESSAGES.map((m, i) => (
+              <div key={i} className="msg-item" onClick={() => navigate("/messages")}>
+                <div className="msg-av">
+                  {m.init}
+                  {m.online && <span className="online-dot" />}
+                </div>
+                <div className="msg-info">
+                  <div className="msg-name">{m.name}</div>
+                  <div className="msg-preview">{m.preview}</div>
+                </div>
+                <div className="msg-meta">
+                  <div className="msg-time">{m.time}</div>
+                  {m.unread > 0 && <div className="msg-badge">{m.unread}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
       </div>
     </>
