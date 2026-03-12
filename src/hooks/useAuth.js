@@ -57,7 +57,6 @@ export function useAuth() {
   return { user, profile, loading, signIn, signUp, signOut, refreshProfile }
 }
 EOFcat > src/hooks/useAuth.js << 'EOF'
-import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 export function useAuth() {
